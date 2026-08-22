@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ai-delta 四层逻辑图</title>
+  <link rel="icon" href="data:,">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'JetBrains Mono', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: #f5f7fb; min-height: 100vh; padding: 2rem; color: #182b49;
+    }
+    .container { max-width: 1280px; margin: 0 auto; }
+    .header { margin-bottom: 2rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+    .pulse-dot { width: 12px; height: 12px; background: #0ea5e9; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    h1 { font-size: 1.5rem; font-weight: 700; }
+    .subtitle { color: #5e6b7f; font-size: 0.875rem; margin-left: 1.75rem; line-height: 1.6; }
+    .diagram-container {
+      background: #ffffff; border-radius: 8px; border: 1px solid #d9e2ec;
+      padding: 1.5rem; overflow-x: auto; box-shadow: 0 14px 32px rgba(30, 58, 95, 0.07);
+    }
+    svg { width: 100%; min-width: 1000px; display: block; }
+    .map-wrap {
+      margin-top: 1.5rem; background: #ffffff; border: 1px solid #d9e2ec;
+      border-radius: 8px; padding: 1.25rem 1.25rem 0.5rem; box-shadow: 0 10px 24px rgba(30, 58, 95, 0.05);
+    }
+    .map-wrap h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .map-wrap .map-note { color: #5e6b7f; font-size: 0.75rem; line-height: 1.6; margin-bottom: 0.9rem; }
+    .map-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; line-height: 1.45; margin-bottom: 1.1rem; }
+    .map-table th {
+      text-align: left; color: #182b49; font-weight: 600; padding: 0.5rem 0.6rem;
+      border-bottom: 1.5px solid #d9e2ec; background: #f8fafc;
+    }
+    .map-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid #e7edf5; color: #4a5b71; vertical-align: top; }
+    .map-table caption {
+      caption-side: top; text-align: left; font-size: 0.8rem; font-weight: 600;
+      color: #182b49; margin-bottom: 0.5rem;
+    }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .card { background: #ffffff; border-radius: 8px; border: 1px solid #d9e2ec; padding: 1.25rem; box-shadow: 0 10px 24px rgba(30, 58, 95, 0.05); }
+    .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .card-dot.cyan { background: #0ea5e9; }
+    .card-dot.violet { background: #7c3aed; }
+    .card-dot.rose { background: #e11d48; }
+    .card h3 { font-size: 0.875rem; font-weight: 600; }
+    .card ul { list-style: none; color: #5e6b7f; font-size: 0.75rem; line-height: 1.55; }
+    .card li { margin-bottom: 0.375rem; }
+    .eli5-strip {
+      display: grid; grid-template-columns: minmax(180px, 0.35fr) 1fr; gap: 18px;
+      align-items: start; margin-top: 18px; padding: 16px 4px;
+      border-top: 1px solid #d9e2ec; border-bottom: 1px solid #d9e2ec;
+    }
+    .eli5-strip strong { color: #0f766e; font-size: 13px; }
+    .eli5-strip p { color: #4a5b71; font-size: 12px; line-height: 1.65; }
+    .footer { text-align: center; margin-top: 1.5rem; color: #657387; font-size: 0.75rem; }
+    .toolbar { display: flex; gap: 0.5rem; margin-left: auto; flex-shrink: 0; align-items: center; }
+    .toolbar-toggle {
+      background: transparent; border: none; color: #657387; cursor: pointer;
+      font-size: 1.25rem; line-height: 1; padding: 0.25rem 0.5rem; border-radius: 0.375rem;
+    }
+    .toolbar-toggle:hover { color: #182b49; background: rgba(100, 116, 139, 0.10); }
+    .toolbar-actions { display: none; gap: 0.5rem; }
+    .toolbar.expanded .toolbar-actions { display: flex; }
+    .toolbar-actions button {
+      background: #f8fafc; border: 1px solid #c7d2df; color: #4a5b71;
+      padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-family: inherit;
+      font-size: 0.75rem; cursor: pointer; white-space: nowrap;
+    }
+    .toolbar-actions button:hover { background: #e7eef6; color: #182b49; border-color: #9fb1c5; }
+    @media print { body { background: #f5f7fb; padding: 1rem; } .toolbar { display: none !important; } }
+    @media (max-width: 760px) { .eli5-strip { grid-template-columns: 1fr; gap: 8px; } }
+  </style>
+</head>
+<body>
+  <div class="container" id="report-container">
+    <div class="header">
+      <div class="header-row">
+        <div class="pulse-dot"></div>
+        <h1>ai-delta 四层逻辑图</h1>
+        <div class="toolbar">
+          <div class="toolbar-actions">
+            <button onclick="copyAsImage(this)">📋 复制</button>
+            <button onclick="downloadPNG(this)">🖼️ PNG</button>
+            <button onclick="downloadPDF(this)">📄 PDF</button>
+          </div>
+          <button class="toolbar-toggle" onclick="this.parentElement.classList.toggle('expanded')" title="导出选项" aria-label="导出选项">⋯</button>
+        </div>
+      </div>
+      <p class="subtitle">四条横带，一层一带：受到的冲击 → 要获得的能力 → 三份积累的文本 → 这些文本怎么用。能力盒子右下角的标签写明它落到哪份文本。</p>
+    </div>
+
+    <div class="diagram-container">
+      <svg viewBox="0 0 1200 1000" role="img" aria-label="ai-delta 四层逻辑：冲击、能力、三份文本、使用方法">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#7c8a9d" />
+          </marker>
+          <marker id="arrow-sky" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#0ea5e9" />
+          </marker>
+          <marker id="arrow-violet" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#7c3aed" />
+          </marker>
+          <marker id="arrow-amber" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#d97706" />
+          </marker>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e7edf5" stroke-width="0.5"/>
+          </pattern>
+        </defs>
+        <rect width="1200" height="1000" fill="url(#grid)" />
+
+        <!-- ============ 连线先画，盒子压在上面 ============ -->
+        <!-- 第三层 → 第四层 -->
+        <line x1="260" y1="592" x2="260" y2="656" stroke="#0ea5e9" stroke-width="1.5" marker-end="url(#arrow-sky)"/>
+        <line x1="310" y1="662" x2="310" y2="598" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-sky)"/>
+        <line x1="570" y1="592" x2="570" y2="656" stroke="#0ea5e9" stroke-width="1.5" marker-end="url(#arrow-sky)"/>
+        <line x1="630" y1="662" x2="630" y2="598" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-sky)"/>
+        <line x1="980" y1="592" x2="980" y2="656" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
+        <text x="232" y="622" fill="#0ea5e9" font-size="8" text-anchor="middle">读</text>
+        <text x="348" y="622" fill="#0ea5e9" font-size="8" text-anchor="middle">叠一层</text>
+        <text x="542" y="622" fill="#0ea5e9" font-size="8" text-anchor="middle">读</text>
+        <text x="668" y="622" fill="#0ea5e9" font-size="8" text-anchor="middle">叠一层</text>
+        <text x="1030" y="622" fill="#7c3aed" font-size="8" text-anchor="middle">人全文读</text>
+
+        <!-- 第四层内部 -->
+        <path d="M 900 772 L 900 786 L 610 786 L 610 794" fill="none" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrow-violet)"/>
+        <line x1="780" y1="855" x2="814" y2="855" stroke="#d97706" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-amber)"/>
+        <text x="797" y="845" fill="#d97706" font-size="8" text-anchor="middle">降级</text>
+
+        <!-- 建架子 直接对应脚手架，走右侧留白 -->
+        <path d="M 1070 388 L 1070 406 L 1172 406 L 1172 855 L 1166 855" fill="none" stroke="#d97706" stroke-width="1.5" marker-end="url(#arrow-amber)"/>
+        <text x="1136" y="620" fill="#d97706" font-size="8" text-anchor="middle">不经过第三层</text>
+
+        <!-- ============ 第一层 ============ -->
+        <rect x="20" y="20" width="1160" height="210" rx="12" fill="rgba(225, 29, 72, 0.04)" stroke="#e11d48" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="42" fill="#e11d48" font-size="11" font-weight="600">第一层 · 受到的冲击与遇到的问题</text>
+
+        <rect x="40" y="52" width="1120" height="40" rx="6" fill="#ffffff"/>
+        <rect x="40" y="52" width="1120" height="40" rx="6" fill="rgba(225, 29, 72, 0.10)" stroke="#e11d48" stroke-width="1.5"/>
+        <text x="600" y="70" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">底座：生成变便宜了，验证没有</text>
+        <text x="600" y="85" fill="#5e6b7f" font-size="8" text-anchor="middle">稀缺资源 = 我的验证带宽 · 下面所有冲击都是它的下游</text>
+
+        <rect x="45" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="45" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="120" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击1 抬地板</text>
+        <text x="120" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">不抬天花板</text>
+
+        <rect x="205" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="205" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="280" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击2 解耦</text>
+        <text x="280" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">做事与学习分开</text>
+
+        <rect x="365" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="365" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="440" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击3 不精准</text>
+        <text x="440" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">只是愿意重复</text>
+
+        <rect x="525" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="525" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="600" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击4 局部搜索</text>
+        <text x="600" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">收敛到局部最优</text>
+
+        <rect x="685" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="685" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="760" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击5 过劲</text>
+        <text x="760" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">默认多做一点</text>
+
+        <rect x="845" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="845" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="920" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击6 一到对</text>
+        <text x="920" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">几乎没便宜</text>
+
+        <rect x="1005" y="104" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="1005" y="104" width="150" height="46" rx="6" fill="rgba(225, 29, 72, 0.08)" stroke="#e11d48" stroke-width="1"/>
+        <text x="1080" y="123" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">冲击7 阅读带宽</text>
+        <text x="1080" y="139" fill="#5e6b7f" font-size="8" text-anchor="middle">成了新瓶颈</text>
+
+        <rect x="45" y="162" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="45" y="162" width="150" height="46" rx="6" fill="rgba(234, 88, 12, 0.10)" stroke="#ea580c" stroke-width="1"/>
+        <text x="120" y="181" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">困难 a 看起来对</text>
+        <text x="120" y="197" fill="#5e6b7f" font-size="8" text-anchor="middle">但不是我要的</text>
+
+        <rect x="205" y="162" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="205" y="162" width="150" height="46" rx="6" fill="rgba(234, 88, 12, 0.10)" stroke="#ea580c" stroke-width="1"/>
+        <text x="280" y="181" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">困难 b 修错层</text>
+        <text x="280" y="197" fill="#5e6b7f" font-size="8" text-anchor="middle">错误去了错的层</text>
+
+        <rect x="365" y="162" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="365" y="162" width="150" height="46" rx="6" fill="rgba(234, 88, 12, 0.10)" stroke="#ea580c" stroke-width="1"/>
+        <text x="440" y="181" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">困难 c 层次混</text>
+        <text x="440" y="197" fill="#5e6b7f" font-size="8" text-anchor="middle">概念叠在一起</text>
+
+        <rect x="525" y="162" width="150" height="46" rx="6" fill="#ffffff"/>
+        <rect x="525" y="162" width="150" height="46" rx="6" fill="rgba(234, 88, 12, 0.10)" stroke="#ea580c" stroke-width="1"/>
+        <text x="600" y="181" fill="#182b49" font-size="9" font-weight="600" text-anchor="middle">困难 d 量太大</text>
+        <text x="600" y="197" fill="#5e6b7f" font-size="8" text-anchor="middle">超过阅读能力</text>
+
+        <text x="695" y="180" fill="#ea580c" font-size="9" font-weight="600">四类困难 = 冲击在日常里的形态</text>
+        <text x="695" y="196" fill="#5e6b7f" font-size="8">也是 cases.md 的标签，另有 (+) 表示明显高于中位</text>
+
+        <!-- ============ 第二层 ============ -->
+        <rect x="20" y="250" width="1160" height="150" rx="12" fill="rgba(16, 185, 129, 0.04)" stroke="#10b981" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="272" fill="#10b981" font-size="11" font-weight="600">第二层 · 要获得的能力 · 左下写来源冲击，右下写它落到哪份文本</text>
+
+        <rect x="42" y="284" width="176" height="104" rx="6" fill="#ffffff"/>
+        <rect x="42" y="284" width="176" height="104" rx="6" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="130" y="312" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">给学习单独立项</text>
+        <text x="130" y="332" fill="#5e6b7f" font-size="8" text-anchor="middle">来自冲击 2</text>
+        <text x="130" y="346" fill="#5e6b7f" font-size="8" text-anchor="middle">说话才写，当场一行</text>
+        <text x="130" y="374" fill="#0ea5e9" font-size="9" font-weight="600" text-anchor="middle">→ 词 · 拓 · 案</text>
+
+        <rect x="230" y="284" width="176" height="104" rx="6" fill="#ffffff"/>
+        <rect x="230" y="284" width="176" height="104" rx="6" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="318" y="312" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">识别自己的 delta</text>
+        <text x="318" y="332" fill="#5e6b7f" font-size="8" text-anchor="middle">来自冲击 1</text>
+        <text x="318" y="346" fill="#5e6b7f" font-size="8" text-anchor="middle">当筛选器，决定记不记</text>
+        <text x="318" y="374" fill="#0ea5e9" font-size="9" font-weight="600" text-anchor="middle">→ 词 · 拓 · 案</text>
+
+        <rect x="418" y="284" width="176" height="104" rx="6" fill="#ffffff"/>
+        <rect x="418" y="284" width="176" height="104" rx="6" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="506" y="312" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">定位到层</text>
+        <text x="506" y="332" fill="#5e6b7f" font-size="8" text-anchor="middle">冲击 6 · 困难 b / c</text>
+        <text x="506" y="346" fill="#5e6b7f" font-size="8" text-anchor="middle">给「哪儿不对」坐标系</text>
+        <text x="506" y="374" fill="#0ea5e9" font-size="9" font-weight="600" text-anchor="middle">→ 拓</text>
+
+        <rect x="606" y="284" width="176" height="104" rx="6" fill="#ffffff"/>
+        <rect x="606" y="284" width="176" height="104" rx="6" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="694" y="312" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">钉初值</text>
+        <text x="694" y="332" fill="#5e6b7f" font-size="8" text-anchor="middle">冲击 4 / 5 · 困难 a</text>
+        <text x="694" y="346" fill="#5e6b7f" font-size="8" text-anchor="middle">钉位置 · 钉边界 · 钉终点</text>
+        <text x="694" y="374" fill="#0ea5e9" font-size="9" font-weight="600" text-anchor="middle">→ 拓 · 案</text>
+
+        <rect x="794" y="284" width="176" height="104" rx="6" fill="#ffffff"/>
+        <rect x="794" y="284" width="176" height="104" rx="6" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="882" y="312" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">控阅读带宽</text>
+        <text x="882" y="332" fill="#5e6b7f" font-size="8" text-anchor="middle">冲击 7 · 困难 d</text>
+        <text x="882" y="346" fill="#5e6b7f" font-size="8" text-anchor="middle">要最小可检验单元</text>
+        <text x="882" y="374" fill="#0ea5e9" font-size="9" font-weight="600" text-anchor="middle">→ 案</text>
+
+        <rect x="982" y="284" width="176" height="104" rx="6" fill="#ffffff"/>
+        <rect x="982" y="284" width="176" height="104" rx="6" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1.5"/>
+        <text x="1070" y="312" fill="#182b49" font-size="11" font-weight="600" text-anchor="middle">建架子，不写提示词</text>
+        <text x="1070" y="332" fill="#5e6b7f" font-size="8" text-anchor="middle">来自冲击 3</text>
+        <text x="1070" y="346" fill="#5e6b7f" font-size="8" text-anchor="middle">确定性由工具提供</text>
+        <text x="1070" y="374" fill="#d97706" font-size="9" font-weight="600" text-anchor="middle">→ 架</text>
+
+        <!-- ============ 第三层 ============ -->
+        <rect x="20" y="420" width="1160" height="190" rx="12" fill="rgba(14, 165, 233, 0.04)" stroke="#0ea5e9" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="442" fill="#0ea5e9" font-size="11" font-weight="600">第三层 · 三份积累的文本 · 全部由 skill 当场写，一条不超过一行</text>
+
+        <rect x="40" y="452" width="360" height="140" rx="6" fill="#ffffff"/>
+        <rect x="40" y="452" width="360" height="140" rx="6" fill="rgba(14, 165, 233, 0.10)" stroke="#0ea5e9" stroke-width="1.5"/>
+        <text x="220" y="478" fill="#182b49" font-size="13" font-weight="600" text-anchor="middle">词 · vocab.md</text>
+        <text x="220" y="496" fill="#5e6b7f" font-size="9" text-anchor="middle">一个词一节 · 外行说法 · ob 标记 · 搞混过</text>
+        <text x="60" y="520" fill="#0f766e" font-size="8" font-weight="600">对应能力</text>
+        <text x="60" y="536" fill="#4a5b71" font-size="8">· 给学习单独立项 — 我一问就写，不用另外整理</text>
+        <text x="60" y="550" fill="#4a5b71" font-size="8">· 识别 delta — 只收我要靠它做判断的词</text>
+        <text x="220" y="578" fill="#0ea5e9" font-size="8" text-anchor="middle">机器写 · 机器读</text>
+
+        <rect x="420" y="452" width="360" height="140" rx="6" fill="#ffffff"/>
+        <rect x="420" y="452" width="360" height="140" rx="6" fill="rgba(14, 165, 233, 0.10)" stroke="#0ea5e9" stroke-width="1.5"/>
+        <text x="600" y="478" fill="#182b49" font-size="13" font-weight="600" text-anchor="middle">拓 · topology.md</text>
+        <text x="600" y="496" fill="#5e6b7f" font-size="9" text-anchor="middle">一类项目一节 · 每层一行：层名 — 判据</text>
+        <text x="440" y="520" fill="#0f766e" font-size="8" font-weight="600">对应能力</text>
+        <text x="440" y="536" fill="#4a5b71" font-size="8">· 定位到层 — 判据就是「哪儿不对」的坐标系</text>
+        <text x="440" y="550" fill="#4a5b71" font-size="8">· 钉初值（钉位置）— 开工前先说清改哪一层</text>
+        <text x="440" y="564" fill="#4a5b71" font-size="8">· 学习立项 + delta 筛选</text>
+        <text x="600" y="582" fill="#0ea5e9" font-size="8" text-anchor="middle">机器写 · 机器读</text>
+
+        <rect x="800" y="452" width="360" height="140" rx="6" fill="#ffffff"/>
+        <rect x="800" y="452" width="360" height="140" rx="6" fill="rgba(124, 58, 237, 0.10)" stroke="#7c3aed" stroke-width="1.5"/>
+        <text x="980" y="478" fill="#182b49" font-size="13" font-weight="600" text-anchor="middle">案 · cases.md</text>
+        <text x="980" y="496" fill="#5e6b7f" font-size="9" text-anchor="middle">一次翻车或惊艳一行 · 标签 a/b/c/d/+</text>
+        <text x="820" y="520" fill="#0f766e" font-size="8" font-weight="600">对应能力</text>
+        <text x="820" y="536" fill="#4a5b71" font-size="8">· 钉初值（边界、终点）— 这次缺的是哪一样</text>
+        <text x="820" y="550" fill="#4a5b71" font-size="8">· 控阅读带宽（切分）— 量超了也记一条</text>
+        <text x="820" y="564" fill="#4a5b71" font-size="8">· 学习立项 + delta 筛选</text>
+        <text x="980" y="582" fill="#7c3aed" font-size="8" text-anchor="middle">机器写 · 人读</text>
+
+        <!-- ============ 第四层 ============ -->
+        <rect x="20" y="630" width="1160" height="300" rx="12" fill="rgba(217, 119, 6, 0.04)" stroke="#d97706" stroke-width="1" stroke-dasharray="8,4"/>
+        <text x="36" y="652" fill="#d97706" font-size="11" font-weight="600">第四层 · 这些文本怎么用</text>
+        <text x="1160" y="652" fill="#d97706" font-size="10" text-anchor="end">左边全自动，右边只有我能做</text>
+
+        <rect x="40" y="662" width="740" height="110" rx="6" fill="#ffffff"/>
+        <rect x="40" y="662" width="740" height="110" rx="6" fill="rgba(14, 165, 233, 0.10)" stroke="#0ea5e9" stroke-width="1.5"/>
+        <text x="410" y="690" fill="#182b49" font-size="12" font-weight="600" text-anchor="middle">用法一 · 循环叠加（词 + 拓）</text>
+        <text x="410" y="712" fill="#5e6b7f" font-size="9" text-anchor="middle">每次对话都做：rg '^## ' 只读标题，相关小节才展开正文</text>
+        <text x="410" y="730" fill="#5e6b7f" font-size="9" text-anchor="middle">最多两条关联候选，我确认后才叠一层</text>
+        <text x="410" y="754" fill="#0ea5e9" font-size="8" text-anchor="middle">消费和生产是同一个动作 · 卡片每被用一次就厚一层</text>
+
+        <rect x="800" y="662" width="360" height="110" rx="6" fill="#ffffff"/>
+        <rect x="800" y="662" width="360" height="110" rx="6" fill="rgba(124, 58, 237, 0.10)" stroke="#7c3aed" stroke-width="1.5"/>
+        <text x="980" y="690" fill="#182b49" font-size="12" font-weight="600" text-anchor="middle">用法二 · 我整理案例（案）</text>
+        <text x="980" y="712" fill="#5e6b7f" font-size="9" text-anchor="middle">只有这一步全文加载 cases.md</text>
+        <text x="980" y="730" fill="#5e6b7f" font-size="9" text-anchor="middle">不是每次对话，是我坐下来整理的时候</text>
+        <text x="980" y="754" fill="#7c3aed" font-size="8" text-anchor="middle">跨多条比较 · 这是我的 delta</text>
+
+        <rect x="440" y="800" width="340" height="110" rx="6" fill="#ffffff"/>
+        <rect x="440" y="800" width="340" height="110" rx="6" fill="rgba(100, 116, 139, 0.10)" stroke="#64748b" stroke-width="1.5"/>
+        <text x="610" y="828" fill="#182b49" font-size="12" font-weight="600" text-anchor="middle">说法笔记本</text>
+        <text x="610" y="848" fill="#5e6b7f" font-size="9" text-anchor="middle">~/Desktop/ai-delta-phrasing.md</text>
+        <text x="610" y="866" fill="#5e6b7f" font-size="8" text-anchor="middle">在 skill 包外面 · 人写人读 · agent 不许打开</text>
+        <text x="610" y="892" fill="#64748b" font-size="8" text-anchor="middle">学 prompt 技巧的地方，不是约束</text>
+
+        <rect x="820" y="800" width="340" height="110" rx="6" fill="#ffffff"/>
+        <rect x="820" y="800" width="340" height="110" rx="6" fill="rgba(217, 119, 6, 0.12)" stroke="#d97706" stroke-width="1.5"/>
+        <text x="990" y="828" fill="#182b49" font-size="12" font-weight="600" text-anchor="middle">架 · 脚手架 / 独立 skill</text>
+        <text x="990" y="848" fill="#5e6b7f" font-size="9" text-anchor="middle">lint · hook · 测试 · 类型 · 新 skill</text>
+        <text x="990" y="866" fill="#5e6b7f" font-size="8" text-anchor="middle">人做一次，之后机器每次都执行</text>
+        <text x="990" y="892" fill="#d97706" font-size="8" text-anchor="middle">只有这一份真正进 agent 上下文</text>
+
+        <text x="60" y="828" fill="#182b49" font-size="10" font-weight="600">三次加载，对象不同</text>
+        <text x="60" y="848" fill="#4a5b71" font-size="8">1 每次对话 → 只读 词 / 拓 的标题</text>
+        <text x="60" y="864" fill="#4a5b71" font-size="8">2 我整理时 → 人全文读 案</text>
+        <text x="60" y="880" fill="#4a5b71" font-size="8">3 真要机器执行 → 另做架</text>
+        <text x="60" y="900" fill="#64748b" font-size="8">说法笔记本不进任何一次加载</text>
+
+        <!-- ============ 图例 ============ -->
+        <text x="36" y="960" fill="#182b49" font-size="10" font-weight="600">图例</text>
+        <rect x="90" y="951" width="16" height="10" rx="2" fill="rgba(225, 29, 72, 0.10)" stroke="#e11d48" stroke-width="1"/>
+        <text x="112" y="960" fill="#5e6b7f" font-size="8">冲击</text>
+        <rect x="152" y="951" width="16" height="10" rx="2" fill="rgba(234, 88, 12, 0.10)" stroke="#ea580c" stroke-width="1"/>
+        <text x="174" y="960" fill="#5e6b7f" font-size="8">困难</text>
+        <rect x="214" y="951" width="16" height="10" rx="2" fill="rgba(16, 185, 129, 0.10)" stroke="#10b981" stroke-width="1"/>
+        <text x="236" y="960" fill="#5e6b7f" font-size="8">能力</text>
+        <rect x="276" y="951" width="16" height="10" rx="2" fill="rgba(14, 165, 233, 0.10)" stroke="#0ea5e9" stroke-width="1"/>
+        <text x="298" y="960" fill="#5e6b7f" font-size="8">机器读写：词 / 拓</text>
+        <rect x="410" y="951" width="16" height="10" rx="2" fill="rgba(124, 58, 237, 0.10)" stroke="#7c3aed" stroke-width="1"/>
+        <text x="432" y="960" fill="#5e6b7f" font-size="8">机器写、人读：案</text>
+        <rect x="544" y="951" width="16" height="10" rx="2" fill="rgba(100, 116, 139, 0.10)" stroke="#64748b" stroke-width="1"/>
+        <text x="566" y="960" fill="#5e6b7f" font-size="8">skill 包外的笔记本</text>
+        <rect x="690" y="951" width="16" height="10" rx="2" fill="rgba(217, 119, 6, 0.12)" stroke="#d97706" stroke-width="1"/>
+        <text x="712" y="960" fill="#5e6b7f" font-size="8">架：机器约束</text>
+        <line x1="800" y1="956" x2="826" y2="956" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="4,3"/>
+        <text x="832" y="960" fill="#5e6b7f" font-size="8">虚线 = 回写或降级</text>
+        <text x="960" y="960" fill="#5e6b7f" font-size="8">能力右下角「→ 词 · 拓 · 案 · 架」= 它落到哪份文本</text>
+      </svg>
+    </div>
+
+    <section class="map-wrap" aria-label="能力与积累文本对照">
+      <h2>对照表 · 能力 ↔ 积累的文本</h2>
+      <p class="map-note">图里能力盒子的右下角标签是简写，这里是完整对应。每一行都回答同一个问题：这份文本存在，是为了长哪一种能力。</p>
+      <table class="map-table">
+        <caption>按能力看：它落到哪份文本，在那份里干什么</caption>
+        <thead>
+          <tr><th>能力</th><th>来自哪些挑战</th><th>落到哪份文本</th><th>在那份文本里具体干什么</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>给学习单独立项</td><td>冲击 2 做事与学习解耦</td><td>词 · 拓 · 案</td>
+            <td>三份都靠「说话才写、当场一行」这条规矩存在。没有它，三份都会退回「等有空整理」然后死掉</td>
+          </tr>
+          <tr>
+            <td>识别自己的 delta</td><td>冲击 1 抬地板不抬天花板</td><td>词 · 拓 · 案</td>
+            <td>当筛选器：换个人加同一个模型差不多，就不记。防止三份长成景观</td>
+          </tr>
+          <tr>
+            <td>定位到层</td><td>冲击 6 · 困难 b 修错层 · 困难 c 层次混</td><td>拓</td>
+            <td>每层那句判据就是「哪儿不对」的坐标系。词条的拓扑字段指回这一层</td>
+          </tr>
+          <tr>
+            <td>钉初值</td><td>冲击 4 局部搜索 · 冲击 5 过劲 · 困难 a</td><td>拓 · 案</td>
+            <td>拓扑钉位置；案例记下这次缺的是边界还是终点</td>
+          </tr>
+          <tr>
+            <td>控阅读带宽</td><td>冲击 7 · 困难 d 量太大</td><td>案</td>
+            <td>案例记下这次缺的是切分。全文加载留给人整理时，不放进每次对话</td>
+          </tr>
+          <tr>
+            <td>建架子，不写提示词</td><td>冲击 3 不精准，只是愿意重复</td><td>架（不经过第三层）</td>
+            <td>从说法笔记本降级出来的 lint / hook / 测试 / 新 skill。只有这一份进 agent 上下文</td>
+          </tr>
+        </tbody>
+      </table>
+      <table class="map-table">
+        <caption>按文本看：这份文本在长哪些能力</caption>
+        <thead>
+          <tr><th>积累的文本</th><th>在长哪些能力</th><th>对应挑战</th><th>第四层怎么用</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>词 · vocab.md</td><td>给学习单独立项<br>识别 delta</td><td>冲击 1、2</td>
+            <td>循环叠加：每次对话读标题，确认后叠一层</td>
+          </tr>
+          <tr>
+            <td>拓 · topology.md</td><td>定位到层<br>钉初值（钉位置）<br>学习立项 + delta 筛选</td><td>冲击 4、5、6 · 困难 a/b/c</td>
+            <td>循环叠加：同上，另供词条的拓扑字段检索</td>
+          </tr>
+          <tr>
+            <td>案 · cases.md</td><td>钉初值（边界、终点）<br>控阅读带宽（切分）<br>学习立项 + delta 筛选</td><td>冲击 2、4、5、7 · 困难 a/d</td>
+            <td>我整理时全文加载，写成说法笔记本</td>
+          </tr>
+          <tr>
+            <td>说法笔记本（桌面）</td><td>不直接长能力，是第四层的人工产物</td><td>—</td>
+            <td>只给我看。agent 不读</td>
+          </tr>
+          <tr>
+            <td>架 · 脚手架 / 独立 skill</td><td>建架子，不写提示词</td><td>冲击 3</td>
+            <td>人降级一次，机器每次执行</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-header"><div class="card-dot rose"></div><h3>为什么这样分带</h3></div>
+        <ul>
+          <li>• 一层一条横带，从上到下读就是四环</li>
+          <li>• 三份文本同处第三层，第四层才是用法</li>
+          <li>• 冲击到能力的对应写在盒子里，不拉斜线</li>
+          <li>• 能力到文本用右下角标签，不拉斜线</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-dot cyan"></div><h3>两种用法的转速差</h3></div>
+        <ul>
+          <li>• 词 / 拓：叠一层是当场就知道的事实，可以全自动</li>
+          <li>• 案 → 说法：要跨多条比较，只能我做</li>
+          <li>• 转速差就是该不该自动的判据</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-dot violet"></div><h3>Obelisk 现状</h3></div>
+        <ul>
+          <li>• Cursor 对话已进库，标题带 [Cursor] 前缀</li>
+          <li>• 但 source 记成 claude，不是 cursor</li>
+          <li>• 换工作区会拆成多个 session id</li>
+          <li>• 中文检索用短词，长词组可能命中不到</li>
+        </ul>
+      </div>
+    </div>
+
+    <section class="eli5-strip" aria-label="怎么理解这张图">
+      <strong>先把它想成一个车间</strong>
+      <p>第一层是故障报告，第二层是要练的工种。第三层是三本册子：词典和图纸钉在墙上，每次干活先扫一眼标题、确认后补一笔；事故本平时只往里夹纸条。第四层是这三本册子怎么用——前两本机器自己翻自己写，事故本只有你周末坐下来全部读完，读完写进带回家的笔记本。笔记本里有几条最后会变成车间规章，那才是机器每次开工都要执行的东西。</p>
+    </section>
+
+    <p class="footer">ai-delta-skill · architecture-diagram · 2026-08-21 · 桌面副本</p>
+  </div>
+
+  <script>
+    async function copyAsImage(btn) {
+      const orig = btn.textContent;
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#f5f7fb', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ 已复制';
+      } catch (e) {
+        btn.textContent = '✗ 失败';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+    async function downloadPNG(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ 处理中…';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#f5f7fb', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const link = document.createElement('a');
+        link.download = 'ai-delta-四层逻辑图.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.textContent = '✓ 完成';
+      } catch (e) {
+        btn.textContent = '✗ 失败';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+    async function downloadPDF(btn) {
+      const orig = btn.textContent;
+      btn.textContent = '⏳ 处理中…';
+      try {
+        const el = document.getElementById('report-container');
+        const r = el.getBoundingClientRect();
+        const pad = 32;
+        const canvas = await html2canvas(document.body, { backgroundColor: '#f5f7fb', scale: 2, useCORS: true, ignoreElements: (e) => e.classList && e.classList.contains('toolbar'), x: r.left + window.scrollX - pad, y: r.top + window.scrollY - pad, width: r.width + pad * 2, height: r.height + pad * 2 });
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
+        const pdf = new jsPDF({ orientation, unit: 'px', format: [canvas.width, canvas.height], hotfixes: ['px_scaling'] });
+        pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+        pdf.save('ai-delta-四层逻辑图.pdf');
+        btn.textContent = '✓ 完成';
+      } catch (e) {
+        btn.textContent = '✗ 失败';
+      }
+      setTimeout(() => btn.textContent = orig, 2000);
+    }
+  </script>
+</body>
+</html>
