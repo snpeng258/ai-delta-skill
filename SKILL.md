@@ -35,8 +35,10 @@ description: >-
 |---|---|
 | 「什么是 X」「X 是什么意思」 | [vocab.md](vocab.md) 新建一节或往「叠加」加一行。新节必须有：外行说法、首次 `ob:<source>/<session_id>`、搞混过、拓扑（没有写「无」）。拓扑有值时附检索：`rg '^## <节标题>' topology.md` |
 | 「这项目分几层」「这结构怎么回事」 | [topology.md](topology.md) 建一节或补一行：`层名 — 判据` |
-| 「这个例子很好」「这次很对」 | [cases.md](cases.md) 加一行 `(+)` |
-| 「又碰到那个问题了」「它又修错层了」 | [cases.md](cases.md) 加一行 `(a/b/c/d)` |
+| 「这个例子很好」「这次很对」 | [cases.md](cases.md) 加一行 `(+)`，末栏写 `ob:<source>/<session_id>` |
+| 「又碰到那个问题了」「它又修错层了」 | [cases.md](cases.md) 加一行 `(a/b/c/d)`，末栏写 `ob:<source>/<session_id>` |
+
+写 `ob:` 时先 `overview()`。`current.session_id` 有值就用。Cursor 经常是 `null`（nonce 认不出当前对话）：改搜本项目、标题带 `[Cursor]` 的最新一条，写成 `ob:claude/<id>`。不要写「本次对话」。查不到就空着末栏，不要编。
 
 新词/新项目类型的标题必须自带一句话摘要：`## 词 · 摘要`。
 
